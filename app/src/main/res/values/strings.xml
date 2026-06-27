@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">途一体脂秤</string>
+    <string name="scan_title">设备扫描</string>
+    <string name="scanning">正在扫描...</string>
+    <string name="start_scan">开始扫描</string>
+    <string name="stop_scan">停止扫描</string>
+    <string name="no_devices">未发现体脂秤设备</string>
+    <string name="connecting">正在连接...</string>
+    <string name="connected">已连接</string>
+    <string name="disconnected">已断开</string>
+    <string name="weight_kg">体重 (kg)</string>
+    <string name="body_fat">体脂率 (%)</string>
+    <string name="body_water">水分率 (%)</string>
+    <string name="muscle_mass">肌肉量 (kg)</string>
+    <string name="bone_mass">骨量 (kg)</string>
+    <string name="bmi">BMI</string>
+    <string name="visceral_fat">内脏脂肪等级</string>
+    <string name="basal_metabolism">基础代谢 (kcal)</string>
+    <string name="step_on_scale">请站上体脂秤开始测量</string>
+    <string name="measuring">正在测量...</string>
+    <string name="measurement_result">测量结果</string>
+    <string name="user_profile">个人设置</string>
+    <string name="height">身高 (cm)</string>
+    <string name="age">年龄</string>
+    <string name="gender">性别</string>
+    <string name="male">男</string>
+    <string name="female">女</string>
+    <string name="save">保存</string>
+    <string name="bluetooth_required">需要蓝牙权限</string>
+    <string name="grant_permission">授予权限</string>
+</resources>

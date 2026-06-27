@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 体脂秤 App 图标前景 - 使用 Material 图标风格 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 秤盘底部 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,68 L78,68 L82,82 L26,82 Z" />
+    <!-- 秤盘显示区域 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,54 L68,54 L68,66 L40,66 Z" />
+    <!-- 显示数值 -->
+    <path
+        android:pathData="M46,58 C46,58 50,53 54,60 C54,60 56,56 58,57 C60,58 62,62 62,62"
+        android:strokeWidth="2.5"
+        android:strokeColor="#1A73E8"
+        android:fillColor="@android:color/transparent" />
+    <!-- 人物图标 -->
+    <path
+        android:pathData="M54,32 m-7,0 a7,7 0,1 1,14 0 a7,7 0,1 1,-14 0"
+        android:strokeWidth="2"
+        android:strokeColor="#1A73E8"
+        android:fillColor="@android:color/transparent" />
+    <path
+        android:pathData="M42,48 C42,43 44,40 54,40 C64,40 66,43 66,48 L66,50 L42,50 Z"
+        android:strokeWidth="2"
+        android:strokeColor="#1A73E8"
+        android:fillColor="@android:color/transparent" />
+</vector>

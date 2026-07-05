@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>途一智能体脂秤 MX80 BLE 接口文档</title>
+  <style>
+    :root{--ink:#172033;--muted:#667085;--line:#d9e2ec;--brand:#087f5b;--soft:#eefaf6;--warn:#fff8e6;--code:#101828;--bg:#f5f7fa}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.72 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif}
+    main{max-width:1040px;margin:32px auto;padding:0 22px 64px}.hero,.card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 28px rgba(16,24,40,.05)}
+    .hero{padding:34px 38px;border-top:6px solid var(--brand)}.card{padding:26px 30px;margin-top:20px}h1{font-size:30px;line-height:1.25;margin:0 0 10px}h2{font-size:21px;margin:0 0 14px}h3{font-size:17px;margin:22px 0 8px}.meta{color:var(--muted)}
+    .ok,.note,.warn{padding:13px 16px;border-radius:10px;margin:14px 0}.ok{background:var(--soft);border-left:4px solid var(--brand)}.note{background:#f2f4f7;border-left:4px solid #98a2b3}.warn{background:var(--warn);border-left:4px solid #e6a700}
+    table{width:100%;border-collapse:collapse;margin:12px 0 18px}th,td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}th{background:#f8fafc}code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}code{background:#eef2f6;padding:2px 5px;border-radius:4px}pre{background:var(--code);color:#e6edf3;padding:16px;border-radius:10px;overflow:auto;line-height:1.55}.hex{white-space:nowrap}.tag{display:inline-block;padding:2px 9px;border-radius:99px;background:var(--soft);color:var(--brand);font-weight:650;font-size:12px}ol li,ul li{margin:5px 0}.footer{color:var(--muted);text-align:center;margin-top:24px;font-size:13px}
+    @media(max-width:700px){main{margin:12px auto;padding:0 10px 40px}.hero,.card{padding:22px 18px}table{display:block;overflow-x:auto}h1{font-size:24px}}
+  </style>
+</head>
+<body><main>
+  <section class="hero">
+    <span class="tag">实测确认版</span>
+    <h1>途一智能体脂秤 MX80 BLE 接口文档</h1>
+    <div class="meta">设备名：<code>yoda.scales.mx80</code>　协议：BLE GATT + Xiaomi MiBLE 安全会话　文档版本：1.0</div>
+    <div class="ok"><strong>本文只记录已确认行为：</strong>扫描识别、GATT连接、TOKEN登录、加密测量流、ACK、体重及稳定状态解析。</div>
+  </section>
+
+  <section class="card">
+    <h2>1. 能力与边界</h2>
+    <table><thead><tr><th>项目</th><th>状态</th><th>说明</th></tr></thead><tbody>
+      <tr><td>实时/稳定体重</td><td>已确认</td><td>单位 kg，分辨率 0.01 kg。</td></tr>
+      <tr><td>稳定状态</td><td>已确认</td><td>测量载荷状态字节 bit 0。</td></tr>
+      <tr><td>体脂、水分、肌肉、骨量等</td><td>未发现传输字段</td><td>已解密的数据流中没有确认的独立字段，本文不定义。</td></tr>
+      <tr><td><code>11 94</code> 字段</td><td>未知</td><td>空载、79.78 kg、94.41 kg、95.03 kg样本中均出现，不能定义为阻抗。</td></tr>
+      <tr><td>重新注册/重置绑定</td><td>不纳入本文</td><td>本文仅描述已持有有效12字节TOKEN时的登录。</td></tr>
+    </tbody></table>
+    <div class="warn">体重以外的身体成分若由接入方计算，必须标注为估算值，不能声称由MX80直接测得或传输。</div>
+  </section>
+
+  <section class="card">
+    <h2>2. 前置条件</h2>
+    <ul>
+      <li>BLE中央设备支持GATT通知、Write Without Response、MTU请求和AES-CCM。</li>
+      <li>持有该设备对应的有效米家云TOKEN：固定12字节，即24个十六进制字符。</li>
+      <li>TOKEN不是常见的BLE Key；错误或失效TOKEN会导致登录失败。</li>
+      <li>同一时刻不要让米家与第三方App同时连接秤。</li>
+    </ul>
+    <div class="note">TOKEN的云端获取接口未在本项目中得到可公开复现的确认，因此不在本文中描述。</div>
+  </section>
+
+  <section class="card">
+    <h2>3. 扫描与识别</h2>
+    <p>使用无过滤BLE扫描即可发现设备。已确认的识别信息：</p>
+    <table><tbody>
+      <tr><th>本地名称</th><td><code>yoda.scales.mx80</code></td></tr>
+      <tr><th>Service Data UUID</th><td><code>0000FE95-0000-1000-8000-00805F9B34FB</code></td></tr>
+      <tr><th>一次实测Service Data</th><td><code>10 59 D1 39 00 51 F4 00 00 00 80</code></td></tr>
+    </tbody></table>
+    <p>广播中的FE95数据在多次扫描中保持不变，未确认其中包含体重。体重应通过下述GATT安全通道读取。</p>
+  </section>
+
+  <section class="card">
+    <h2>4. GATT服务与特征</h2>
+    <p>以下特征均位于服务 <code>0000FE95-0000-1000-8000-00805F9B34FB</code>。</p>
+    <table><thead><tr><th>短UUID</th><th>完整UUID</th><th>已确认用途</th></tr></thead><tbody>
+      <tr><td><code>0004</code></td><td><code>00000004-0000-1000-8000-00805F9B34FB</code></td><td>可读设备信息；样本值为ASCII <code>2.1.0_0131</code>。</td></tr>
+      <tr><td><code>0010</code></td><td><code>00000010-0000-1000-8000-00805F9B34FB</code></td><td>认证控制写入及登录结果通知。</td></tr>
+      <tr><td><code>0019</code></td><td><code>00000019-0000-1000-8000-00805F9B34FB</code></td><td>认证数据双向传输。</td></tr>
+      <tr><td><code>001A</code></td><td><code>0000001A-0000-1000-8000-00805F9B34FB</code></td><td>需订阅；当前样本未确认其业务载荷。</td></tr>
+      <tr><td><code>001B</code></td><td><code>0000001B-0000-1000-8000-00805F9B34FB</code></td><td>加密测量通知及应用层ACK。</td></tr>
+      <tr><td><code>001C</code></td><td><code>0000001C-0000-1000-8000-00805F9B34FB</code></td><td>连接预初始化。</td></tr>
+    </tbody></table>
+    <p>通知通过标准CCCD <code>00002902-0000-1000-8000-00805F9B34FB</code>启用。客户端必须同时执行本地通知注册和CCCD写入。</p>
+  </section>
+
+  <section class="card">
+    <h2>5. 已验证连接顺序</h2>
+    <ol>
+      <li>建立LE GATT连接并发现服务；此时先使用默认MTU。</li>
+      <li>按顺序订阅 <code>001B</code>、<code>001A</code>、<code>001C</code>。</li>
+      <li>向 <code>001C</code> 写入 <code>00 00</code>，执行预初始化。</li>
+      <li>预初始化完成后订阅 <code>0019</code>，读取 <code>0004</code>。</li>
+      <li>请求MTU 247。若请求失败，现有MTU仍可继续，但分片行为可能不同。</li>
+      <li>执行A4/F2初始化，随后订阅 <code>0010</code>。</li>
+      <li>使用12字节TOKEN登录。</li>
+      <li>收到 <code>21 00 00 00</code> 后开始解密 <code>001B</code> 测量通知。</li>
+    </ol>
+    <p>认证写入使用 <strong>Write Without Response</strong>。已验证实现将相邻写入间隔设为约10 ms。</p>
+  </section>
+
+  <section class="card">
+    <h2>6. 001C预初始化</h2>
+    <table><thead><tr><th>设备通知</th><th>客户端动作</th></tr></thead><tbody>
+      <tr><td><code>00 02 03 08</code></td><td>向001C写 <code>08 01 00</code>。</td></tr>
+      <tr><td><code>08 LL OO ...</code></td><td>令 <code>payloadLength = LL - 1</code>。若小于17，写 <code>03</code>；否则写 <code>08 01 (OO + payloadLength)</code>。</td></tr>
+      <tr><td>首字节为 <code>03</code></td><td>预初始化完成，进入订阅0019、读0004及请求MTU阶段。</td></tr>
+    </tbody></table>
+    <p><code>LL</code>、<code>OO</code>均按无符号8位整数处理。</p>
+  </section>
+
+  <section class="card">
+    <h2>7. A4/F2初始化</h2>
+    <ol>
+      <li>向 <code>0010</code> 写 <code>A4</code>。</li>
+      <li>设备在 <code>0019</code> 上发送以 <code>00 00 04</code> 开头的帧。</li>
+      <li>复制整帧，将第3字节由 <code>04</code> 改为 <code>05</code>，原样写回 <code>0019</code>。</li>
+      <li>当该帧第4字节为 <code>01</code> 时，此阶段完成；随后重新启用 <code>0010</code> 通知。</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2>8. TOKEN登录</h2>
+    <h3>8.1 常量</h3>
+    <table><tbody>
+      <tr><th>接收方已准备</th><td><code>00 00 01 01</code></td></tr>
+      <tr><th>设备已收到</th><td><code>00 00 01 00</code></td></tr>
+      <tr><th>客户端确认收到</th><td><code>00 00 03 00</code></td></tr>
+      <tr><th>发送客户端随机数命令</th><td><code>00 00 00 0B 01 00</code></td></tr>
+      <tr><th>设备随机数命令</th><td><code>00 00 00 0D 01 00</code></td></tr>
+      <tr><th>设备认证信息命令</th><td><code>00 00 00 0C 02 00</code></td></tr>
+      <tr><th>发送客户端认证信息命令</th><td><code>00 00 00 0A 01 00</code></td></tr>
+    </tbody></table>
+    <h3>8.2 流程</h3>
+    <ol>
+      <li>生成16字节密码学安全随机数 <code>appRandom</code>。</li>
+      <li>向0010写 <code>24 00 00 00</code>；向0019写“发送客户端随机数命令”。</li>
+      <li>设备发送“接收方已准备”后，向0019写 <code>01 00 || appRandom</code>。</li>
+      <li>设备发出“设备随机数命令”时，回复“接收方已准备”。收到16字节 <code>deviceRandom</code> 后，回复“客户端确认收到”。</li>
+      <li>设备发出“设备认证信息命令”时，回复“接收方已准备”。收到32字节 <code>remoteInfo</code> 后，回复“客户端确认收到”，再发送“发送客户端认证信息命令”。</li>
+      <li>按8.3计算并校验密钥。设备再次发送“接收方已准备”后，写 <code>01 00 || loginResponse</code>。</li>
+      <li>设备在0010通知 <code>21 00 00 00</code> 表示登录成功；<code>23 00 00 00</code> 表示登录被拒绝。</li>
+    </ol>
+    <h3>8.3 密钥计算</h3>
+<pre>salt = appRandom || deviceRandom
+derived = HKDF-SHA256(
+    IKM  = token,                 // 12 bytes
+    salt = salt,                  // 32 bytes
+    info = UTF8("mible-login-info"),
+    L    = 64
+)
+
+deviceKey = derived[0..15]
+appKey    = derived[16..31]
+deviceIv  = derived[32..35]
+
+expectedRemoteInfo = HMAC-SHA256(deviceKey, deviceRandom || appRandom)
+loginResponse      = HMAC-SHA256(appKey, appRandom || deviceRandom)</pre>
+    <p>只有 <code>remoteInfo == expectedRemoteInfo</code> 时才能继续。</p>
+    <h3>8.4 认证通知封装</h3>
+    <p>MTU 247样本中，设备可直接发送：</p>
+<pre>00 00 02 TT PAYLOAD...</pre>
+    <p>客户端处理时跳过前4字节，将 <code>PAYLOAD</code> 交给登录状态机。客户端发送不超过240字节的数据时使用 <code>01 00 || DATA</code>。</p>
+  </section>
+
+  <section class="card">
+    <h2>9. 001B测量包解密与ACK</h2>
+    <h3>9.1 加密包</h3>
+<pre>offset  size  confirmed meaning
+0       4    header (observed: 00 00 02 00)
+4       2    packet counter bytes; also used in nonce
+6       N    AES-CCM ciphertext followed by 4-byte authentication tag</pre>
+    <p>每收到一个有效候选测量包，客户端必须立即向 <code>001B</code> 写 <code>00 00 03 00</code>。设备逐包等待该ACK；不发送ACK时，后续测量通知会停止。</p>
+    <h3>9.2 AES-CCM参数</h3>
+<pre>key   = deviceKey                     // 16 bytes
+nonce = deviceIv || 00 00 00 00 || packet[4] || packet[5] || 00 00
+tag   = 4 bytes (32 bits)
+AAD   = none
+input = packet[6..end]                // ciphertext + tag</pre>
+    <p>算法为 <code>AES/CCM/NoPadding</code>。</p>
+  </section>
+
+  <section class="card">
+    <h2>10. 解密明文与体重解析</h2>
+    <h3>10.1 外层明文</h3>
+    <p>已确认的测量明文长度至少27字节，前缀为 <code>1B 20</code>。字节11至26为16个ASCII十六进制字符，解码后得到8字节测量载荷。</p>
+<pre>1B 20 .. .. 04 01 03 01 00 10 A0 39 36 41 45 31 46 32 41 31 31 39 34 32 35 35 37
+                                      |----------- ASCII "96AE1F2A11942557" -----------|</pre>
+    <h3>10.2 8字节测量载荷</h3>
+    <table><thead><tr><th>偏移</th><th>长度</th><th>含义</th><th>解析</th></tr></thead><tbody>
+      <tr><td>0</td><td>2</td><td>未知</td><td>不解释、不参与体重计算。</td></tr>
+      <tr><td>2</td><td>2</td><td>体重</td><td>无符号大端整数，单位0.01 kg。</td></tr>
+      <tr><td>4</td><td>2</td><td>未知</td><td>不解释。</td></tr>
+      <tr><td>6</td><td>1</td><td>状态</td><td>bit 0为1表示稳定；为0表示未稳定。</td></tr>
+      <tr><td>7</td><td>1</td><td>校验和</td><td>前7字节无符号求和后取低8位。</td></tr>
+    </tbody></table>
+<pre>checksum = (b0 + b1 + b2 + b3 + b4 + b5 + b6) & 0xFF
+weightRaw = (b2 &lt;&lt; 8) | b3
+weightKg = weightRaw / 100.0
+stable = (b6 &amp; 0x01) != 0</pre>
+    <h3>10.3 已验证样本</h3>
+    <table><thead><tr><th>载荷</th><th>结果</th></tr></thead><tbody>
+      <tr><td><code>96 AE 1F 2A 11 94 25 57</code></td><td>79.78 kg，稳定，校验和正确。</td></tr>
+      <tr><td><code>96 A3 24 E1 11 94 25 08</code></td><td>94.41 kg，稳定，校验和正确。</td></tr>
+      <tr><td><code>96 A5 25 1F 11 94 25 49</code></td><td>95.03 kg，稳定，校验和正确。</td></tr>
+      <tr><td><code>96 AE 00 00 11 94 24 0D</code></td><td>0 kg，未稳定，校验和正确。</td></tr>
+    </tbody></table>
+  </section>
+
+  <section class="card">
+    <h2>11. 最小实现伪代码</h2>
+<pre>scan for name == "yoda.scales.mx80" or service UUID FE95
+connect GATT
+discover services
+subscribe 001B, 001A, 001C
+run 001C preflight
+subscribe 0019
+read 0004
+request MTU 247
+run A4/F2 preamble
+subscribe 0010
+login with 12-byte token
+
+on 001B notification(packet):
+    writeWithoutResponse(001B, 00 00 03 00)
+    plain = AES_CCM_decrypt(packet, deviceKey, deviceIv)
+    if plain startsWith 1B 20 and plain.length &gt;= 27:
+        payload = hexDecode(ASCII(plain[11..26]))
+        if checksum(payload[0..6]) == payload[7]:
+            publish weight and stable flag</pre>
+  </section>
+
+  <section class="card">
+    <h2>12. 错误处理</h2>
+    <ul>
+      <li>GATT连接失败或断开：关闭当前GATT对象，等待秤重新唤醒后重连。</li>
+      <li>登录结果 <code>23 00 00 00</code>：TOKEN已被设备拒绝，不继续解密。</li>
+      <li>AES-CCM认证失败：丢弃该包，不输出体重。</li>
+      <li>ASCII十六进制非法、长度不足或校验和错误：丢弃该包。</li>
+      <li>体重为0：视为空载状态，不作为有效称重记录。</li>
+      <li>保存最终测量时建议只保存 <code>stable=true</code> 且体重大于0的记录。</li>
+    </ul>
+  </section>
+
+  <div class="footer">本文基于MX80实机、Android 13、固件读取值2.1.0_0131及多组HCI/GATT日志整理。未确认内容不构成接口定义。</div>
+</main></body></html>
